@@ -49,10 +49,12 @@ export async function sendTokens(addresses) {
     return [];
   }
 
-  const amount = parseEther(config.amountPerDrop.toString());
+  const amount = parseEther(config.amountPerDrop.toFixed(8));
 
   logger.info(
-    `Preparing to send ${config.amountPerDrop} ${config.currencySymbol} to ${addresses.length} addresses`
+    `Preparing to send ${config.amountPerDrop.toFixed(8)} ${
+      config.currencySymbol
+    } to ${addresses.length} addresses`
   );
 
   const transactionPromises = addresses.map(async (to) => {
@@ -63,7 +65,9 @@ export async function sendTokens(addresses) {
         gasPrice: config.gasPrice,
       });
 
-      logger.tx(`✅ Sent ${config.amountPerDrop} MON to ${to} in tx: ${hash}`);
+      logger.tx(
+        `✅ Sent ${config.amountPerDrop.toFixed(8)} MON to ${to} in tx: ${hash}`
+      );
       return { to, hash, status: "sent" };
     } catch (error) {
       logger.error(`❌ Failed to send to ${to}: ${error.message}`);
