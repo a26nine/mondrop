@@ -1,8 +1,3 @@
-/**
- * Block monitor module for MonDrop
- * Fetches blocks and monitors chain for new transactions
- */
-
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { createPublicClient, http, defineChain } from "viem";
@@ -35,10 +30,11 @@ export const monadTestnet = defineChain({
 export const publicClient = createPublicClient({
   chain: monadTestnet,
   transport: http(),
+  batch: true,
 });
 
 /**
- * Get the latest block number from the chain
+ * Get the latest block number from the network
  * @returns {Promise<bigint>} Latest block number
  */
 export async function getLatestBlockNumber() {
@@ -80,7 +76,7 @@ export async function getBlockByNumber(blockNumber) {
  * @returns {Promise<Array>} Array of blocks with transactions
  */
 export async function getBlocksInRange(startBlock, endBlock) {
-  logger.block(`Fetching blocks from ${startBlock} to ${endBlock}`);
+  logger.debug(`Fetching blocks from ${startBlock} to ${endBlock}...`);
 
   const promises = [];
   for (let i = startBlock; i <= endBlock; i++) {
@@ -113,7 +109,7 @@ export async function sleep(ms) {
  */
 export async function startBlockMonitor(processBlocksFn) {
   let lastProcessedBlock = await getLatestBlockNumber();
-  logger.info(`Block monitor starting from block: ${lastProcessedBlock}`);
+  logger.info(`Block monitor starting from block ${lastProcessedBlock}...`);
 
   while (true) {
     try {
@@ -131,9 +127,11 @@ export async function startBlockMonitor(processBlocksFn) {
           currentBlock
         );
 
-        processBlocksFn(newBlocks);
+        processBlocksFn(newBlocks).then(() => {
+          logger.block(`Processed ${newBlocks.length} new blocks`);
 
-        lastProcessedBlock = currentBlock;
+          lastProcessedBlock = currentBlock;
+        });
       } else {
         logger.debug(`No new blocks since ${lastProcessedBlock}`);
       }
