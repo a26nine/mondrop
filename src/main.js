@@ -44,14 +44,14 @@ async function processBlocks(blocks) {
  */
 async function initialize() {
   try {
-    console.log("=".repeat(60));
+    console.log("=".repeat(78));
     console.log(`🚀 Starting MonDrop...`);
     console.log(
       `💰 Dropping ${config.amountPerDrop.toFixed(8)} MON to ${
         config.addressesPerBatch
       } active addresses every ${config.batchPeriod / 1000}s`
     );
-    console.log("=".repeat(60) + "\n");
+    console.log("=".repeat(78) + "\n");
 
     await initializeWallet();
 
