@@ -1,17 +1,17 @@
 # MonDrop
 
-A NodeJS application that automatically rewards active users on the Monad Testnet with surprise MON token drops at regular intervals.
+A NodeJS application that automatically rewards active users on Monad-Testnet with Testnet $MON.
 
 ## Features
 
-- Real-time monitoring of Monad Testnet blocks
-- Random selection of active addresses (excluding contracts) from recent transactions
+- Real-time monitoring of Monad-Testnet blocks
+- Random selection of active addresses from recent transactions, excluding contracts and recently selected addresses
 - Automated token distribution to selected addresses
 
 ## Prerequisites
 
 - Node.js (`v18` or higher)
-- Wallet with MON tokens on Monad Testnet
+- Private key of a wallet with sufficient Testnet $MON on Monad-Testnet
 
 ## Installation
 
@@ -35,10 +35,11 @@ npm start
 
 The application follows a modular architecture:
 
+- Batch Manager (`batchManager.js`): Manages the distribution of tokens in batches
 - Block Monitor (`blockMonitor.js`): Tracks new blocks and fetches transaction data
 - Address Parser (`addressParser.js`): Extracts unique addresses from transactions
-- Address Selector (`addressSelector.js`): Filters and randomly selects recipient addresses excluding contracts
-- Token Sender (`tokenSender.js`): Handles MON token drops
+- Address Selector (`addressSelector.js`): Filters and randomly selects recipient addresses excluding contracts and recently selected addresses
+- Token Sender (`tokenSender.js`): Handles Testnet $MON distribution
 - Logger (`logger.js`): Provides comprehensive logging
 - Config (`config.js`): Centralizes all configurable parameters
 - Main (`main.js`): Orchestrates the entire process
@@ -49,4 +50,4 @@ UNLICENSED
 
 ## Disclaimer
 
-This tool is meant for Testnet use only. Always be cautious with private keys and ensure you're using the correct network settings.
+This tool is meant for Testnet use with Monad-Testnet only. Always be cautious with private keys and ensure you're using the correct network settings.

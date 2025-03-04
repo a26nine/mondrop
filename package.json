@@ -1,7 +1,7 @@
 {
   "name": "mondrop",
   "version": "1.0.0",
-  "description": "Surprise token drops for active users on the Monad Testnet!",
+  "description": "Reward active users on Monad-Testnet with Testnet $MON",
   "type": "module",
   "main": "src/main.js",
   "scripts": {

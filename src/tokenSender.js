@@ -4,6 +4,7 @@ import { logger } from "./logger.js";
 import { parseEther, createWalletClient, http } from "viem";
 import { privateKeyToAccount, nonceManager } from "viem/accounts";
 import { monadTestnet } from "./blockMonitor.js";
+import { incrementBatch } from "./batchManager.js";
 
 dotenv.config();
 
@@ -83,6 +84,8 @@ export async function sendTokens(addresses) {
   logger.success(
     `Token drop complete: ${successful} successful, ${failed} failed`
   );
+
+  incrementBatch();
 
   return transactions;
 }

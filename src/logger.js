@@ -1,7 +1,3 @@
-/**
- * Logging module for MonDrop
- */
-
 import { config } from "./config.js";
 
 const colors = {

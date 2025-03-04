@@ -1,11 +1,7 @@
-/**
- * Main module for MonDrop
- * This is the entry point for the application
- */
-
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { initializeWallet, sendTokens } from "./tokenSender.js";
+import { initializeBatch } from "./batchManager.js";
 import { startBlockMonitor } from "./blockMonitor.js";
 import { extractAddressesFromBlocks } from "./addressParser.js";
 import { selectRandomAddresses } from "./addressSelector.js";
@@ -54,6 +50,7 @@ async function initialize() {
     console.log("=".repeat(78) + "\n");
 
     await initializeWallet();
+    initializeBatch();
 
     return true;
   } catch (error) {
