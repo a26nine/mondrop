@@ -1,0 +1,19 @@
+{
+  "name": "mondrop",
+  "version": "1.0.0",
+  "description": "Surprise token drops for active users on the Monad Testnet!",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js"
+  },
+  "author": "a26nine",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "viem": "^2.23.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
