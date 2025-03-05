@@ -31,7 +31,10 @@ export async function isContractAddress(address) {
   }
 
   try {
-    const code = await publicClient.getCode({ address });
+    const code = await publicClient.getCode({
+      address: address,
+      blockTag: "latest",
+    });
     // If code length is greater than '0x' (empty), it's a contract
     const isContract = code && code.length > 2;
 
@@ -91,7 +94,7 @@ function shuffleAddresses(addresses) {
 }
 
 /**
- * Select random addresses from a list, excluding contracts and recently selected addresses
+ * Select random addresses from a list, excluding contracts addresses and recently selected wallet addresses
  *
  * @param {Array} addresses - List of addresses to select from
  * @param {number} count - Number of addresses to select
@@ -114,10 +117,6 @@ export async function selectRandomAddresses(
   // This will also clean up the contract cache
   if (currentBatch > 1) {
     cleanupAddressCache(currentBatch, true);
-
-    logger.debug(
-      `Filtering out ${getWalletAddressCacheSize()} recently selected addresses...`
-    );
   }
 
   const eligibleAddresses = [];
@@ -127,12 +126,17 @@ export async function selectRandomAddresses(
 
     if (isAddressInWalletCache(lowerAddress)) {
       addToAddressCache(lowerAddress, currentBatch);
-      logger.debug(`Address ${addr} is filtered out (recently selected)`);
+      logger.debug(`Address ${addr} is filtered out`);
     } else {
       eligibleAddresses.push(addr);
     }
   });
 
+  if (currentBatch > 1) {
+    logger.info(
+      `Filtered out ${getWalletAddressCacheSize()} recently selected wallet addresses`
+    );
+  }
   logger.info(`${eligibleAddresses.length} addresses eligible for selection`);
 
   if (eligibleAddresses.length === 0) {

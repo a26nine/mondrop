@@ -45,6 +45,10 @@ The application follows a modular architecture:
 - Config (`config.js`): Centralizes all configurable parameters
 - Main (`main.js`): Orchestrates the entire process
 
+## Notes
+
+- At higher `batchPeriod`, the tool will require an unrestricted or higher RPC rate limit to avoid rate limiting errors.
+
 ## License
 
 UNLICENSED
