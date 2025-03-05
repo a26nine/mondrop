@@ -9,7 +9,7 @@ let currentBatch;
  */
 export function initializeBatch() {
   currentBatch = 1;
-  logger.info(`Initializing batch manager with batch ${currentBatch}...`);
+  logger.info(`Initialized batch manager with batch ${currentBatch}`);
   return currentBatch;
 }
 

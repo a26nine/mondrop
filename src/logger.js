@@ -16,6 +16,7 @@ const LogLevel = {
   WARN: 2,
   ERROR: 3,
   NONE: 4,
+  TRACE: -1,
 };
 
 let currentLogLevel = LogLevel[config.logLevel];
@@ -103,6 +104,21 @@ export const logger = {
     if (currentLogLevel <= LogLevel.DEBUG) {
       console.debug(
         `${colors.white}[DEBUG]  ${
+          colors.reset
+        } ${new Date().toISOString()} ${message}`
+      );
+    }
+  },
+
+  /**
+   * Log trace message
+   * @param {string} message - Message to log
+   */
+  trace: (message) => {
+    if (currentLogLevel <= LogLevel.TRACE) {
+      // This is set to debug to skip stack traces
+      console.debug(
+        `${colors.white}[TRACE]  ${
           colors.reset
         } ${new Date().toISOString()} ${message}`
       );

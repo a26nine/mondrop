@@ -23,7 +23,7 @@ async function processBlocks(blocks) {
     const selectedAddresses = await selectRandomAddresses(addresses);
 
     if (selectedAddresses.length === 0) {
-      logger.info("No suitable non-contract addresses found. Skipping...");
+      logger.info("No suitable wallet addresses found. Skipping...");
       return;
     }
 

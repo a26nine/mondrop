@@ -31,7 +31,7 @@ export async function initializeWallet() {
     transport: http(),
   });
 
-  logger.info(`Wallet configured with address: ${account.address}`);
+  logger.info(`Drop wallet configured with address: ${account.address}`);
 }
 
 /**
@@ -55,7 +55,7 @@ export async function sendTokens(addresses) {
   logger.info(
     `Preparing to send ${config.amountPerDrop.toFixed(8)} ${
       config.currencySymbol
-    } to ${addresses.length} addresses`
+    } to ${addresses.length} random addresses...`
   );
 
   const transactionPromises = addresses.map(async (to) => {
@@ -82,7 +82,7 @@ export async function sendTokens(addresses) {
   const failed = transactions.filter((tx) => tx.status === "failed").length;
 
   logger.success(
-    `Token drop complete: ${successful} successful, ${failed} failed`
+    `$MON drop complete: ${successful} successful, ${failed} failed`
   );
 
   incrementBatch();
