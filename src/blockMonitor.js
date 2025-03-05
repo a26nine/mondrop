@@ -30,7 +30,9 @@ export const monadTestnet = defineChain({
 export const publicClient = createPublicClient({
   chain: monadTestnet,
   transport: http(),
-  batch: true,
+  batch: {
+    batchSize: 10, // Don't change this unless you know what you're doing
+  },
 });
 
 /**
@@ -109,7 +111,9 @@ export async function sleep(ms) {
  */
 export async function startBlockMonitor(processBlocksFn) {
   let lastProcessedBlock = await getLatestBlockNumber();
-  logger.info(`Block monitor starting from block ${lastProcessedBlock}...`);
+  logger.info(
+    `Block monitor initialized from block ${BigInt(lastProcessedBlock) + 1n}`
+  );
 
   while (true) {
     try {
@@ -133,12 +137,12 @@ export async function startBlockMonitor(processBlocksFn) {
           lastProcessedBlock = currentBlock;
         });
       } else {
-        logger.debug(`No new blocks since ${lastProcessedBlock}`);
+        logger.info(`No new blocks since ${lastProcessedBlock}`);
       }
     } catch (error) {
       logger.error(`Error in block monitor: ${error.message}`);
 
-      await sleep(5000);
+      await sleep(config.batchPeriod);
     }
   }
 }
