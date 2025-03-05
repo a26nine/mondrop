@@ -23,7 +23,7 @@ export const config = {
 
   // Drop configuration
   addressesPerBatch: 50, // How many addresses to drop tokens to per batch
-  amountPerDrop: 0.0001, // How much $MON to drop per address per batch
+  amountPerDrop: 0.1, // How much $MON to drop per address per batch
   cooldownBatches: 30, // How many batches to wait before dropping tokens again to the same address // Total time before dropping tokens to the same address is dropInterval * cooldownBatches
 
   // Logging configuration

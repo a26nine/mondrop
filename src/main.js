@@ -45,7 +45,7 @@ async function initialize() {
     console.log("=".repeat(78));
     console.log(`🚀 Starting MonDrop...`);
     console.log(
-      `💰 Dropping ${config.amountPerDrop.toFixed(18)} MON to ${
+      `💰 Dropping ${config.amountPerDrop.toFixed(8)} MON to ${
         config.addressesPerBatch
       } active addresses every ${config.dropInterval}s`
     );

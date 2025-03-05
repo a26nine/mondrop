@@ -111,7 +111,7 @@ async function processBatch(addresses) {
   const amount = parseEther(config.amountPerDrop.toFixed(18));
 
   logger.info(
-    `Sending ${config.amountPerDrop.toFixed(18)} ${config.currencySymbol} to ${
+    `Sending ${config.amountPerDrop.toFixed(8)} ${config.currencySymbol} to ${
       addresses.length
     } random addresses...`
   );
@@ -125,9 +125,7 @@ async function processBatch(addresses) {
       });
 
       logger.tx(
-        `✅ Sent ${config.amountPerDrop.toFixed(
-          18
-        )} MON to ${to} in tx: ${hash}`
+        `✅ Sent ${config.amountPerDrop.toFixed(8)} MON to ${to} in tx: ${hash}`
       );
       return { to, hash, status: "sent" };
     } catch (error) {
