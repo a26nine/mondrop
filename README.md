@@ -5,7 +5,7 @@ A NodeJS application that automatically rewards active users on Monad-Testnet wi
 ## Features
 
 - Real-time monitoring of Monad-Testnet blocks
-- Random selection of active addresses from recent transactions, excluding contracts and recently selected addresses
+- Random selection of active addresses from recent transactions, excluding contract addresses and recently selected wallet addresses
 - Automated token distribution to selected addresses
 
 ## Prerequisites
@@ -36,6 +36,7 @@ npm start
 The application follows a modular architecture:
 
 - Batch Manager (`batchManager.js`): Manages the distribution of tokens in batches
+- Cache Manager (`cacheManager.js`): Manages the cache of recently queried contract addresses and selected wallet addresses
 - Block Monitor (`blockMonitor.js`): Tracks new blocks and fetches transaction data
 - Address Parser (`addressParser.js`): Extracts unique addresses from transactions
 - Address Selector (`addressSelector.js`): Filters and randomly selects recipient addresses excluding contracts and recently selected addresses
