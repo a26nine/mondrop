@@ -53,7 +53,7 @@ gasPrice: 51n * 10n ** 9n, // 51 gwei in wei (fixed gas price)
 ### Time Interval Configuration
 
 ```javascript
-blockFetchInterval: 2, // How often to check for new blocks
+blockFetchInterval: 2, // How often to check for new blocks // Keep this low to avoid hitting rate limits
 dropInterval: 10, // How often to drop tokens
 transactionProcessingInterval: 1, // How long to wait for transactions to be processed after selection
 cacheCleanupInterval: 10, // How often to clean up the cache // Should be less than or equal to dropInterval
