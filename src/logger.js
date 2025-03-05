@@ -24,7 +24,7 @@ let currentLogLevel = LogLevel[config.logLevel];
 export const logger = {
   /**
    * Set the current logging level
-   * @param {string} level - Logging level ('DEBUG', 'INFO', 'WARN', 'ERROR', 'NONE')
+   * @param {string} level - Logging level ('DEBUG', 'INFO', 'WARN', 'ERROR', 'NONE', 'TRACE')
    */
   setLogLevel: (level) => {
     if (level in LogLevel) {

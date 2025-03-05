@@ -1,5 +1,6 @@
 import { config } from "./config.js";
 import { logger } from "./logger.js";
+import { scheduleTask } from "./timeManager.js";
 import { createPublicClient, http, defineChain } from "viem";
 
 export const monadTestnet = defineChain({
@@ -35,6 +36,10 @@ export const publicClient = createPublicClient({
   },
 });
 
+let lastProcessedBlock = null;
+let newBlocksBuffer = [];
+let isProcessingBlocks = false;
+
 /**
  * Get the latest block number from the network
  * @returns {Promise<bigint>} Latest block number
@@ -42,7 +47,6 @@ export const publicClient = createPublicClient({
 export async function getLatestBlockNumber() {
   try {
     const blockNumber = await publicClient.getBlockNumber();
-    logger.block(`Latest block number: ${blockNumber}`);
     return blockNumber;
   } catch (error) {
     logger.error(`Error fetching latest block number: ${error.message}`);
@@ -78,7 +82,7 @@ export async function getBlockByNumber(blockNumber) {
  * @returns {Promise<Array>} Array of blocks with transactions
  */
 export async function getBlocksInRange(startBlock, endBlock) {
-  logger.debug(`Fetching blocks from ${startBlock} to ${endBlock}...`);
+  logger.block(`Fetching blocks from ${startBlock} to ${endBlock}...`);
 
   const promises = [];
   for (let i = startBlock; i <= endBlock; i++) {
@@ -87,7 +91,6 @@ export async function getBlocksInRange(startBlock, endBlock) {
 
   try {
     const blocks = await Promise.all(promises);
-    logger.block(`Successfully fetched ${blocks.length} blocks`);
     return blocks;
   } catch (error) {
     logger.error(`Error fetching blocks in range: ${error.message}`);
@@ -96,53 +99,108 @@ export async function getBlocksInRange(startBlock, endBlock) {
 }
 
 /**
- * Sleep for a specified amount of time
- * @param {number} ms - Milliseconds to sleep
+ * Check for new blocks and add them to the buffer
  * @returns {Promise<void>}
  */
-export async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export async function checkForNewBlocks() {
+  try {
+    const currentBlock = await getLatestBlockNumber();
+
+    if (lastProcessedBlock === null) {
+      lastProcessedBlock = currentBlock;
+      logger.info(`Block monitor initialized at block ${currentBlock}`);
+      return;
+    }
+
+    if (currentBlock > lastProcessedBlock) {
+      logger.debug(
+        `New blocks detected: ${lastProcessedBlock + 1n} to ${currentBlock}`
+      );
+
+      const newBlocks = await getBlocksInRange(
+        lastProcessedBlock + 1n,
+        currentBlock
+      );
+
+      for (const block of newBlocks) {
+        // Import here to avoid circular dependency
+        const { extractAddressesFromBlocks } = await import(
+          "./addressParser.js"
+        );
+        const { filterContractAddresses } = await import(
+          "./addressSelector.js"
+        );
+
+        const addresses = extractAddressesFromBlocks([block]);
+        if (addresses.length > 0) {
+          filterContractAddresses(addresses).catch((err) => {
+            logger.debug(
+              `Error checking contract status for addresses: ${err.message}`
+            );
+          });
+        }
+      }
+
+      newBlocksBuffer.push(...newBlocks);
+      logger.debug(
+        `Added ${newBlocks.length} blocks to buffer (Total buffer size: ${newBlocksBuffer.length} blocks)`
+      );
+
+      lastProcessedBlock = currentBlock;
+      logger.block(`Processed addresses till block ${lastProcessedBlock}`);
+    } else {
+      logger.block(`No new blocks since ${lastProcessedBlock}`);
+    }
+  } catch (error) {
+    logger.error(`Error checking for new blocks: ${error.message}`);
+  }
 }
 
 /**
- * Continuously monitor for new blocks and process them
+ * Process the block buffer using the provided callback
+ * @param {Function} processBlocksFn - Callback for processing blocks
+ * @returns {Promise<void>}
+ */
+export async function processBlockBuffer(processBlocksFn) {
+  if (isProcessingBlocks || newBlocksBuffer.length === 0) {
+    return;
+  }
+
+  isProcessingBlocks = true;
+  try {
+    const blocksToProcess = [...newBlocksBuffer];
+    newBlocksBuffer = [];
+
+    logger.debug(`Processing ${blocksToProcess.length} blocks from buffer...`);
+
+    await processBlocksFn(blocksToProcess);
+
+    logger.debug(`Processed ${blocksToProcess.length} blocks from buffer`);
+  } catch (error) {
+    logger.error(`Error processing block buffer: ${error.message}`);
+  } finally {
+    isProcessingBlocks = false;
+  }
+}
+
+/**
+ * Start the block monitoring and processing system
  * @param {Function} processBlocksFn - Function to call with new blocks
  * @returns {Promise<void>}
  */
 export async function startBlockMonitor(processBlocksFn) {
-  let lastProcessedBlock = await getLatestBlockNumber();
-  logger.info(
-    `Block monitor initialized from block ${BigInt(lastProcessedBlock) + 1n}`
+  lastProcessedBlock = await getLatestBlockNumber();
+  logger.info(`Block monitor initialized at block ${lastProcessedBlock}`);
+
+  scheduleTask(
+    "checkNewBlocks",
+    checkForNewBlocks,
+    config.blockFetchInterval * 1000
   );
 
-  while (true) {
-    try {
-      await sleep(config.batchPeriod);
-
-      const currentBlock = await getLatestBlockNumber();
-
-      if (currentBlock > lastProcessedBlock) {
-        logger.block(
-          `New blocks detected: ${lastProcessedBlock + 1n} to ${currentBlock}`
-        );
-
-        const newBlocks = await getBlocksInRange(
-          lastProcessedBlock + 1n,
-          currentBlock
-        );
-
-        processBlocksFn(newBlocks).then(() => {
-          logger.block(`Processed ${newBlocks.length} new blocks`);
-
-          lastProcessedBlock = currentBlock;
-        });
-      } else {
-        logger.info(`No new blocks since ${lastProcessedBlock}`);
-      }
-    } catch (error) {
-      logger.error(`Error in block monitor: ${error.message}`);
-
-      await sleep(config.batchPeriod);
-    }
-  }
+  scheduleTask(
+    "processDrop",
+    async () => processBlockBuffer(processBlocksFn),
+    config.dropInterval * 1000
+  );
 }

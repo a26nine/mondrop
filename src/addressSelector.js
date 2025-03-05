@@ -1,15 +1,13 @@
 import { config } from "./config.js";
 import { logger } from "./logger.js";
-import { getCurrentBatch } from "./batchManager.js";
 import { publicClient } from "./blockMonitor.js";
 import {
-  isAddressInContractCache,
+  isContractAddressInCache,
   getContractAddressFromCache,
-  updateContractCache,
-  cleanupAddressCache,
-  addToAddressCache,
-  isAddressInWalletCache,
-  getWalletAddressCacheSize,
+  updateContractAddressCache,
+  isWalletAddressInCache,
+  addToWalletAddressCache,
+  getCurrentWalletAddressCacheBatch,
 } from "./cacheManager.js";
 
 /**
@@ -21,12 +19,9 @@ import {
 export async function isContractAddress(address) {
   const normalizedAddress = address.toLowerCase();
 
-  if (isAddressInContractCache(normalizedAddress)) {
-    const currentBatch = getCurrentBatch();
-
+  if (isContractAddressInCache(normalizedAddress)) {
     logger.debug(`Cache hit for contract ${normalizedAddress}`);
-    updateContractCache(normalizedAddress, currentBatch, false);
-
+    updateContractAddressCache(normalizedAddress);
     return getContractAddressFromCache(normalizedAddress);
   }
 
@@ -39,14 +34,13 @@ export async function isContractAddress(address) {
     const isContract = code && code.length > 2;
 
     if (isContract) {
-      const currentBatch = getCurrentBatch();
-      updateContractCache(normalizedAddress, currentBatch, true);
+      updateContractAddressCache(normalizedAddress, undefined, true);
     }
 
     return isContract;
   } catch (error) {
     logger.warn(
-      `Error checking if address ${address} is a contract: ${error.message}`
+      `Error checking contract status for ${address}: ${error.message}`
     );
     // If we can't determine, assume it's not a contract to be safe
     return false;
@@ -54,31 +48,39 @@ export async function isContractAddress(address) {
 }
 
 /**
- * Filter out contract addresses from a list
+ * Filter out contract addresses from a list and update the cache
  *
- * @param {Array} addresses - List of addresses to filter
- * @returns {Promise<Array>} Non-contract addresses
+ * @param {Array} addresses - List of addresses to check
+ * @returns {Promise<void>}
  */
 export async function filterContractAddresses(addresses) {
-  logger.debug(`Checking ${addresses.length} addresses for contracts...`);
+  if (!addresses || addresses.length === 0) return;
 
-  const results = await Promise.all(
-    addresses.map(async (address) => {
-      const isContractResult = await isContractAddress(address);
-      return { address, isContractAddress: isContractResult };
-    })
-  );
+  logger.debug(`Pre-checking ${addresses.length} addresses for contracts...`);
 
-  const nonContractAddresses = results
-    .filter((item) => !item.isContractAddress)
-    .map((item) => item.address);
+  const batchSize = 50; // Don't change this unless you know what you're doing
+  for (let i = 0; i < addresses.length; i += batchSize) {
+    const batch = addresses.slice(i, i + batchSize);
 
-  const filteredCount = addresses.length - nonContractAddresses.length;
-  if (filteredCount > 0) {
-    logger.info(`Filtered out ${filteredCount} contract addresses`);
+    // Use Promise.allSettled to continue even if some checks fail
+    const results = await Promise.allSettled(
+      batch.map((address) => isContractAddress(address))
+    );
+
+    const contractsFound = results.filter(
+      (result) => result.status === "fulfilled" && result.value === true
+    ).length;
+
+    if (contractsFound > 0) {
+      logger.debug(
+        `Found ${contractsFound} contracts in this batch of ${batch.length} addresses`
+      );
+    }
   }
 
-  return nonContractAddresses;
+  logger.debug(
+    `Completed contract pre-checking for ${addresses.length} addresses`
+  );
 }
 
 /**
@@ -98,73 +100,95 @@ function shuffleAddresses(addresses) {
  *
  * @param {Array} addresses - List of addresses to select from
  * @param {number} count - Number of addresses to select
- * @param {number} currentBatch - Current batch number
  * @returns {Promise<Array>} Selected non-contract addresses
  */
 export async function selectRandomAddresses(
   addresses,
-  count = config.addressesPerBatch,
-  currentBatch = getCurrentBatch()
+  count = config.addressesPerBatch
 ) {
-  logger.info(`Starting selection for batch ${currentBatch}...`);
+  const preFilteredAddresses = [];
+  const unknownContractStatus = [];
 
-  const nonContractAddresses = await filterContractAddresses(addresses);
-  if (nonContractAddresses.length === 0) {
-    logger.warn("No non-contract addresses available for selection");
-    return [];
-  }
+  for (const address of addresses) {
+    const normalizedAddress = address.toLowerCase();
 
-  // This will also clean up the contract cache
-  if (currentBatch > 1) {
-    cleanupAddressCache(currentBatch, true);
-  }
-
-  const eligibleAddresses = [];
-
-  nonContractAddresses.forEach((addr) => {
-    const lowerAddress = addr.toLowerCase();
-
-    if (isAddressInWalletCache(lowerAddress)) {
-      addToAddressCache(lowerAddress, currentBatch);
-      logger.debug(`Address ${addr} is filtered out`);
-    } else {
-      eligibleAddresses.push(addr);
+    if (
+      isContractAddressInCache(normalizedAddress) &&
+      getContractAddressFromCache(normalizedAddress) === true
+    ) {
+      continue;
     }
-  });
 
-  if (currentBatch > 1) {
-    logger.info(
-      `Filtered out ${getWalletAddressCacheSize()} recently selected wallet addresses`
-    );
+    if (isWalletAddressInCache(normalizedAddress)) {
+      logger.debug(`Skipping ${address} as it's already in the cache`);
+      continue;
+    }
+
+    if (isContractAddressInCache(normalizedAddress)) {
+      preFilteredAddresses.push(address);
+    } else {
+      unknownContractStatus.push(address);
+    }
   }
-  logger.info(`${eligibleAddresses.length} addresses eligible for selection`);
 
-  if (eligibleAddresses.length === 0) {
-    logger.warn(
-      "No eligible addresses available after filtering recent selections"
+  logger.debug(
+    `Found ${preFilteredAddresses.length} known wallet addresses from cache, while ${unknownContractStatus.length} addresses need contract status checked`
+  );
+
+  if (preFilteredAddresses.length >= count * 2) {
+    logger.debug(
+      `Using cached data only as sufficient wallet addresses are available`
+    );
+  } else if (unknownContractStatus.length > 0) {
+    logger.debug(
+      `Checking ${unknownContractStatus.length} addresses for contract status...`
     );
 
+    const batchSize = 50; // Don't change this unless you know what you're doing
+    for (let i = 0; i < unknownContractStatus.length; i += batchSize) {
+      const batch = unknownContractStatus.slice(i, i + batchSize);
+
+      const checkPromises = batch.map(async (address) => {
+        try {
+          const isContract = await isContractAddress(address);
+          return { address, isContract };
+        } catch (error) {
+          logger.debug(
+            `Error checking contract status for ${address}: ${error.message}`
+          );
+          // Assume it's a contract on error to be safe
+          return { address, isContract: true };
+        }
+      });
+
+      const results = await Promise.all(checkPromises);
+
+      for (const result of results) {
+        if (!result.isContract) {
+          preFilteredAddresses.push(result.address);
+        }
+      }
+
+      if (preFilteredAddresses.length >= count * 2) {
+        logger.debug(
+          `Gathered ${preFilteredAddresses.length} addresses from contract checks, stopping contract checks...`
+        );
+        break;
+      }
+    }
+  }
+
+  if (preFilteredAddresses.length === 0) {
+    logger.warn("No eligible addresses available after filtering");
     return [];
   }
 
-  if (eligibleAddresses.length <= count) {
-    logger.warn(
-      `Only ${eligibleAddresses.length} eligible addresses available for selection`
-    );
+  shuffleAddresses(preFilteredAddresses);
 
-    eligibleAddresses.forEach((addr) => {
-      addToAddressCache(addr, currentBatch);
-    });
+  const finalCount = Math.min(count, preFilteredAddresses.length);
+  const selected = preFilteredAddresses.slice(0, finalCount);
 
-    return eligibleAddresses;
-  }
-
-  // Fix: shuffle the eligible addresses instead of nonContractAddresses
-  shuffleAddresses(eligibleAddresses);
-
-  const selected = eligibleAddresses.slice(0, count);
-
-  selected.forEach((addr) => addToAddressCache(addr, currentBatch));
+  selected.forEach((addr) => addToWalletAddressCache(addr));
 
   logger.debug(`Selected ${selected.length} random addresses for the drop`);
   return selected;

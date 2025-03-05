@@ -27,7 +27,7 @@ export function extractAddressesFromBlocks(blocks) {
 
   const uniqueAddresses = Array.from(addresses);
 
-  logger.info(
+  logger.debug(
     `Extracted ${uniqueAddresses.length} unique addresses from ${txCount} transactions`
   );
 

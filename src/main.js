@@ -1,15 +1,17 @@
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { initializeWallet, sendTokens } from "./tokenSender.js";
-import { initializeBatch } from "./batchManager.js";
+import { initializeBatchManager } from "./batchManager.js";
+import { initializeCacheManager } from "./cacheManager.js";
 import { startBlockMonitor } from "./blockMonitor.js";
 import { extractAddressesFromBlocks } from "./addressParser.js";
 import { selectRandomAddresses } from "./addressSelector.js";
+import { clearAllScheduledTasks } from "./timeManager.js";
 
 /**
- * Start the block monitor, process blocks, and send tokens to selected addresses
+ * Process the block data and initiate token distribution
  *
- * @param {Array} blocks - New blocks to process
+ * @param {Array} blocks - Array of blocks to process
  */
 async function processBlocks(blocks) {
   try {
@@ -28,7 +30,7 @@ async function processBlocks(blocks) {
     }
 
     sendTokens(selectedAddresses).catch((error) => {
-      logger.error(`Error during token drop: ${error.message}`);
+      logger.error(`Error during $MON drop: ${error.message}`);
     });
   } catch (error) {
     logger.error(`Error processing blocks: ${error.message}`);
@@ -43,14 +45,15 @@ async function initialize() {
     console.log("=".repeat(78));
     console.log(`🚀 Starting MonDrop...`);
     console.log(
-      `💰 Dropping ${config.amountPerDrop.toFixed(8)} MON to ${
+      `💰 Dropping ${config.amountPerDrop.toFixed(18)} MON to ${
         config.addressesPerBatch
-      } active addresses every ${config.batchPeriod / 1000}s`
+      } active addresses every ${config.dropInterval}s`
     );
     console.log("=".repeat(78) + "\n");
 
     await initializeWallet();
-    initializeBatch();
+    initializeBatchManager();
+    initializeCacheManager();
 
     return true;
   } catch (error) {
@@ -66,6 +69,8 @@ async function startMonDrop() {
   process.on("uncaughtException", (error) => {
     logger.error(`Uncaught exception: ${error.message}`);
     logger.error(error.stack);
+
+    clearAllScheduledTasks();
   });
 
   process.on("unhandledRejection", (reason, promise) => {
@@ -84,6 +89,7 @@ async function startMonDrop() {
     await startBlockMonitor(processBlocks);
   } catch (error) {
     logger.error(`Fatal error: ${error.message}. Exiting...`);
+    clearAllScheduledTasks();
     process.exit(1);
   }
 }
@@ -91,6 +97,7 @@ async function startMonDrop() {
 if (import.meta.url.endsWith(process.argv[1])) {
   startMonDrop().catch((error) => {
     logger.error(`Failed to start MonDrop: ${error.message}. Exiting...`);
+    clearAllScheduledTasks();
     process.exit(1);
   });
 }
